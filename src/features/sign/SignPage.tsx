@@ -70,21 +70,18 @@ function SignPageContent() {
     [setSelectedPage, setPlacement],
   );
 
-  // Determine current step
+  // Determine current step (4 steps now: upload PDF, upload sig, select page, position & apply)
   const currentStep = result
-    ? 6
-    : placement
-      ? 5
-      : pageSelected && document && signature
-        ? 4
-        : signature && file
-          ? 3
-          : file
-            ? 2
-            : 1;
+    ? 5
+    : pageSelected && document && signature
+      ? 4
+      : signature && file
+        ? 3
+        : file
+          ? 2
+          : 1;
 
-  // For step calculation display (max 5 before result)
-  const displayStep = Math.min(currentStep, 5);
+  const displayStep = Math.min(currentStep, 4);
 
   return (
     <PageLayout title="Sign PDF" description="Add your signature to a PDF">
@@ -93,10 +90,10 @@ function SignPageContent() {
         {!result && (
           <div className="mb-6">
             <p className="text-sm font-medium text-gray-500">
-              Step {displayStep} of 5
+              Step {displayStep} of 4
             </p>
             <div className="mt-2 flex gap-1">
-              {Array.from({ length: 5 }, (_, i) => (
+              {Array.from({ length: 4 }, (_, i) => (
                 <div
                   key={i}
                   className={`h-1.5 flex-1 rounded-full ${
@@ -152,7 +149,7 @@ function SignPageContent() {
           </div>
         )}
 
-        {/* Step 4: Position signature */}
+        {/* Step 4: Position signature & apply */}
         {currentStep === 4 && document && signature && (
           <div>
             <h2 className="mb-3 text-lg font-semibold text-gray-800">
@@ -164,27 +161,17 @@ function SignPageContent() {
               onPlacement={setPlacement}
               signaturePreview={signature.preview}
             />
-          </div>
-        )}
-
-        {/* Step 5: Apply */}
-        {currentStep === 5 && !result && (
-          <div className="flex flex-col items-center gap-4">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Apply Signature
-            </h2>
-            <p className="text-sm text-gray-600">
-              Your signature is positioned. Click below to apply it to the PDF.
-            </p>
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={apply}
-              loading={isProcessing}
-              disabled={isProcessing}
-            >
-              Apply Signature
-            </Button>
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={apply}
+                loading={isProcessing}
+                disabled={isProcessing || !placement}
+              >
+                Apply Signature
+              </Button>
+            </div>
           </div>
         )}
 

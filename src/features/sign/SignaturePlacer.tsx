@@ -13,7 +13,7 @@ interface SignaturePlacerProps {
 const INITIAL_SIG_WIDTH = 150;
 const INITIAL_SIG_HEIGHT = 50;
 const RENDER_SCALE = 1.5;
-const MIN_SIZE = 20;
+const MIN_SIZE = 30;
 
 const SignaturePlacer: FC<SignaturePlacerProps> = ({
   document,
@@ -35,13 +35,19 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
+  // Helper: get pointer position relative to the container
+  const getRelativePos = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: clientX, y: clientY };
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }, []);
+
   // Render the PDF page
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !document) return;
 
-    const pageNum = pageIndex + 1; // 1-indexed
-
+    const pageNum = pageIndex + 1;
     let cancelled = false;
 
     (async () => {
@@ -69,6 +75,7 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
     };
   }, [document, pageIndex]);
 
+  // Convert screen coords to PDF coords and emit
   const emitPlacement = useCallback(
     (screenX: number, screenY: number, screenW: number, screenH: number) => {
       if (canvasSize.width === 0 || canvasSize.height === 0) return;
@@ -91,25 +98,30 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
     [canvasSize, pdfDims, pageIndex, onPlacement],
   );
 
+  // Drag start
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       isDragging.current = true;
+      const rel = getRelativePos(e.clientX, e.clientY);
       dragOffset.current = {
-        x: e.clientX - sigPos.x,
-        y: e.clientY - sigPos.y,
+        x: rel.x - sigPos.x,
+        y: rel.y - sigPos.y,
       };
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [sigPos],
+    [sigPos, getRelativePos],
   );
 
+  // Drag / resize move
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      const rel = getRelativePos(e.clientX, e.clientY);
+
       if (isDragging.current) {
-        const newX = Math.max(0, Math.min(e.clientX - dragOffset.current.x, canvasSize.width - sigSize.width));
-        const newY = Math.max(0, Math.min(e.clientY - dragOffset.current.y, canvasSize.height - sigSize.height));
+        const newX = Math.max(0, Math.min(rel.x - dragOffset.current.x, canvasSize.width - sigSize.width));
+        const newY = Math.max(0, Math.min(rel.y - dragOffset.current.y, canvasSize.height - sigSize.height));
         setSigPos({ x: newX, y: newY });
       }
       if (isResizing.current) {
@@ -120,9 +132,10 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
         setSigSize({ width: newW, height: newH });
       }
     },
-    [canvasSize, sigSize, sigPos],
+    [canvasSize, sigSize, sigPos, getRelativePos],
   );
 
+  // Drag / resize end
   const handlePointerUp = useCallback(() => {
     if (isDragging.current) {
       isDragging.current = false;
@@ -134,6 +147,7 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
     }
   }, [sigPos, sigSize, emitPlacement]);
 
+  // Resize handle start
   const handleResizePointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
@@ -150,15 +164,6 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
     [sigSize],
   );
 
-  // Emit initial placement once canvas is rendered
-  useEffect(() => {
-    if (canvasSize.width > 0 && canvasSize.height > 0) {
-      emitPlacement(sigPos.x, sigPos.y, sigSize.width, sigSize.height);
-    }
-    // Only run on initial canvas render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasSize.width, canvasSize.height]);
-
   return (
     <div className="flex flex-col items-center gap-4">
       <p className="text-sm text-gray-600">
@@ -166,11 +171,16 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
       </p>
       <div
         ref={containerRef}
-        className="relative inline-block border border-gray-300 rounded shadow-sm"
+        className="relative inline-block border border-gray-300 rounded shadow-sm overflow-hidden"
+        style={{ maxWidth: '100%' }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <canvas ref={canvasRef} className="block" />
+        <canvas
+          ref={canvasRef}
+          className="block"
+          style={{ maxWidth: '100%', height: 'auto' }}
+        />
 
         {canvasSize.width > 0 && (
           <div
@@ -202,13 +212,14 @@ const SignaturePlacer: FC<SignaturePlacerProps> = ({
             <div
               style={{
                 position: 'absolute',
-                right: -4,
-                bottom: -4,
-                width: 12,
-                height: 12,
+                right: -5,
+                bottom: -5,
+                width: 14,
+                height: 14,
                 backgroundColor: '#3b82f6',
                 borderRadius: 2,
                 cursor: 'nwse-resize',
+                border: '2px solid white',
               }}
               onPointerDown={handleResizePointerDown}
             />
