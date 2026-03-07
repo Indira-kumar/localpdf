@@ -28,21 +28,36 @@ export default function MergePage() {
   const handleDrop = useCallback(
     async (droppedFiles: File[]) => {
       setUploadError(null);
-      const newItems: PdfFileItem[] = [];
 
-      for (const file of droppedFiles) {
+      // Read all files into ArrayBuffers in parallel upfront,
+      // before any async processing that could cause re-renders.
+      const reads = await Promise.all(
+        droppedFiles.map(async (file) => {
+          try {
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            return { file, arrayBuffer } as const;
+          } catch {
+            return { file, arrayBuffer: null } as const;
+          }
+        })
+      );
+
+      const newItems: PdfFileItem[] = [];
+      for (const { file, arrayBuffer } of reads) {
+        if (!arrayBuffer) {
+          setUploadError(`Failed to read "${file.name}". The file may be corrupted.`);
+          continue;
+        }
         try {
-          const arrayBuffer = await readFileAsArrayBuffer(file);
           const pdfDoc = await PDFDocument.load(arrayBuffer, {
             ignoreEncryption: true,
           });
-          const pageCount = pdfDoc.getPageCount();
           newItems.push({
             id: crypto.randomUUID(),
             name: file.name,
             size: file.size,
             arrayBuffer,
-            pageCount,
+            pageCount: pdfDoc.getPageCount(),
           });
         } catch {
           setUploadError(`Failed to read "${file.name}". The file may be corrupted.`);
