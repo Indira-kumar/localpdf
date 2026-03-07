@@ -2,7 +2,9 @@ import { getDocument } from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 
 export async function loadPdfDocument(buffer: ArrayBuffer): Promise<PDFDocumentProxy> {
-  const doc = await getDocument({ data: buffer }).promise;
+  // Copy the buffer so pdfjs-dist doesn't detach the original when it
+  // transfers data to its internal rendering worker.
+  const doc = await getDocument({ data: buffer.slice(0) }).promise;
   return doc;
 }
 
