@@ -1,12 +1,14 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useState } from "react";
+import { PDFDocument } from "pdf-lib";
 import PageLayout from "../../components/layout/PageLayout";
 import DropZone from "../../components/DropZone";
 import DownloadButton from "../../components/DownloadButton";
 import Button from "../../components/ui/Button";
 import SortableFileList from "./SortableFileList";
 import { useMerge } from "./useMerge";
-import { useFileUpload } from "../../hooks/useFileUpload";
+import { readFileAsArrayBuffer } from "../../lib/file-helpers";
 import { MAX_PDF_SIZE_MB, ACCEPTED_PDF_TYPES } from "../../lib/constants";
+import type { PdfFileItem } from "../../types/pdf";
 
 export default function MergePage() {
   const {
@@ -21,29 +23,40 @@ export default function MergePage() {
     reset,
   } = useMerge();
 
-  const fileUpload = useFileUpload({
-    multiple: true,
-    maxSizeMB: MAX_PDF_SIZE_MB,
-  });
-
-  // Track previous file count to detect newly added files
-  const prevFileCount = useRef(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleDrop = useCallback(
     async (droppedFiles: File[]) => {
-      await fileUpload.addFiles(droppedFiles);
+      setUploadError(null);
+      const newItems: PdfFileItem[] = [];
+
+      for (const file of droppedFiles) {
+        try {
+          const arrayBuffer = await readFileAsArrayBuffer(file);
+          const pdfDoc = await PDFDocument.load(arrayBuffer, {
+            ignoreEncryption: true,
+          });
+          const pageCount = pdfDoc.getPageCount();
+          newItems.push({
+            id: crypto.randomUUID(),
+            name: file.name,
+            size: file.size,
+            arrayBuffer,
+            pageCount,
+          });
+        } catch {
+          setUploadError(`Failed to read "${file.name}". The file may be corrupted.`);
+        }
+      }
+
+      if (newItems.length > 0) {
+        addMergeFiles(newItems);
+      }
     },
-    [fileUpload]
+    [addMergeFiles]
   );
 
-  // Sync: whenever fileUpload.files grows, pass new items to useMerge
-  if (fileUpload.files.length > prevFileCount.current) {
-    const newItems = fileUpload.files.slice(prevFileCount.current);
-    prevFileCount.current = fileUpload.files.length;
-    addMergeFiles(newItems);
-  }
-
-  const error = mergeError || fileUpload.error;
+  const error = mergeError || uploadError;
 
   return (
     <PageLayout
