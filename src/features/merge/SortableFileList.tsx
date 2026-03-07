@@ -24,10 +24,21 @@ interface SortableFileListProps {
 
 interface SortableItemProps {
   file: PdfFileItem;
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onRemove: (id: string) => void;
 }
 
-const SortableItem: FC<SortableItemProps> = ({ file, onRemove }) => {
+const SortableItem: FC<SortableItemProps> = ({
+  file,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}) => {
   const {
     attributes,
     listeners,
@@ -47,9 +58,9 @@ const SortableItem: FC<SortableItemProps> = ({ file, onRemove }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3"
+      className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3"
     >
-      {/* Drag handle (grip icon) */}
+      {/* Drag handle */}
       <button
         type="button"
         className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
@@ -72,11 +83,38 @@ const SortableItem: FC<SortableItemProps> = ({ file, onRemove }) => {
         </svg>
       </button>
 
-      <div className="flex-1">
+      {/* Move up / down buttons */}
+      <div className="flex flex-col">
+        <button
+          type="button"
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="text-gray-400 hover:text-gray-700 disabled:opacity-25 disabled:cursor-not-allowed"
+          aria-label="Move up"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="text-gray-400 hover:text-gray-700 disabled:opacity-25 disabled:cursor-not-allowed"
+          aria-label="Move down"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+
+      {/* File info */}
+      <div className="flex-1 min-w-0">
         <FileInfo name={file.name} size={file.size} pageCount={file.pageCount} />
       </div>
 
-      {/* Remove button (X) */}
+      {/* Remove button */}
       <button
         type="button"
         onClick={() => onRemove(file.id)}
@@ -136,8 +174,16 @@ const SortableFileList: FC<SortableFileListProps> = ({
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col gap-2">
-          {files.map((file) => (
-            <SortableItem key={file.id} file={file} onRemove={onRemove} />
+          {files.map((file, index) => (
+            <SortableItem
+              key={file.id}
+              file={file}
+              index={index}
+              total={files.length}
+              onMoveUp={() => onReorder(index, index - 1)}
+              onMoveDown={() => onReorder(index, index + 1)}
+              onRemove={onRemove}
+            />
           ))}
         </div>
       </SortableContext>
