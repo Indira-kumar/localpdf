@@ -1,0 +1,16 @@
+{
+  "name": "LocalPDF",
+  "short_name": "LocalPDF",
+  "description": "All your PDF tools in one place. 100% private - your files never leave your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
